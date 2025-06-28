@@ -2,7 +2,19 @@ import maya.cmds as cmds
 import os
 import re
 
-def assign_basecolor_shader():
+# texture types config, TODO: config json file
+TEXTURE_TYPES = {
+    "baseColor": {
+        "aliases": ["baseColor", "albedo", "diff", "diffuse"],
+        "shaderAttr": "baseColor",
+    },
+    "normal": {
+        "aliases": ["normal", "nrm"],
+        "shaderAttr": "normalCamera",
+    }
+}
+
+def assign_texture():
     selection = cmds.ls(selection=True, dag=True, long=True, type="transform")
 
     if not selection:
@@ -27,46 +39,62 @@ def assign_basecolor_shader():
     print(f"Shader '{shader_name}' assigned to: {obj}")
 
     # file path for textures
-    file_dir = r"C:\Users\littl\OneDrive\Desktop\AlanaMaya\chess_set_4k.fbx\textures"
+    file_dir = r"C:\Users\littl\OneDrive\Desktop\AlanaMaya\chess_textures"
     
-    # Try exact texture name first
-    texture_name = f"{mesh_name}_baseColor.png"
-    texture_path = os.path.join(file_dir, texture_name)
-    print(f"Looking for texture: {texture_path}")
+    for texture_type, config in TEXTURE_TYPES.items():
+        found_texture = find_texture(mesh_name, file_dir, config['aliases'])
+        print(f"Found {texture_type} texture: {found_texture}")
 
-    if not os.path.exists(texture_path):
-        print(f"single texture not found, trying shared: {texture_path}")
+        if not found_texture:
+            print(f"⚠️ No {texture_type} texture found for mesh: {mesh_name}")
+            continue
 
-        # If exact texture not found, try shared textures
-        texture_path = find_shared_texture(mesh_name, file_dir)
-        if texture_path:
-            print(f"Found Shared textured: {texture_path}")
-        else:
-            print(f"⚠️ No texture found for mesh: {mesh_name}")
-    else:
-        print(f"Found texture: {texture_path}")
+        # Create file texture node and connect to shader's baseColor
+        file_node = cmds.shadingNode("file", asTexture=True, name=f"{texture_type}_file")
+        cmds.setAttr(f"{file_node}.fileTextureName", found_texture, type="string")
 
-    # Create file texture node and connect to shader's baseColor
-    file_node = cmds.shadingNode("file", asTexture=True, name=f"{mesh_name}_file")
-    cmds.setAttr(f"{file_node}.fileTextureName", texture_path, type="string")
-    cmds.connectAttr(f"{file_node}.outColor", f"{shader_name}.baseColor", force=True)
+        # TODO: Function Logic for normal, roughness, etc to include .outAlpha and other nodes (bump2d)
+        cmds.connectAttr(f"{file_node}.outColor", f"{shader_name}.{config['shaderAttr']}", force=True)
 
-    print(f"✅ Connected texture '{texture_path}' to {shader_name}.baseColor")
+        print(f"✅ Connected '{found_texture}' to '{shader_name}.{config['shaderAttr']}'")
 
-def find_shared_texture(mesh_name, texture_dir):
-    keywords = mesh_name.split('_')
+def find_texture(mesh_name, texture_dir, aliases):
+    for alias in aliases:
+        texture_name = f"{mesh_name}_{alias}.png"
+        texture_path = os.path.join(texture_dir, texture_name)
 
-    # !could optimize later
-    shared_textures = []
-    for file_name in os.listdir(texture_dir):
-        if file_name.startswith("shared_"):
-            # If ANY of the keywords are inside the file name, return this file
-            if any(word in file_name for word in keywords):
-                return os.path.join(texture_dir, file_name)
+        if os.path.exists(texture_path):
+            return texture_path
 
-    # Step 4: If nothing matched, return None to say "no shared texture found"
-    return "No shared texture found!"
+    return find_shared_texture(mesh_name, texture_dir, aliases)
 
 def strip_trailing_number(name):
     # Remove trailing underscore + digits (e.g. _01, _12)
     return re.sub(r'_\d+$', '', name)
+
+def find_shared_texture(mesh_name, texture_dir, aliases):
+    keywords = mesh_name.split('_')
+    best_match = None
+    highest_match_count = 0
+
+    # !could optimize later    
+    for file_name in os.listdir(texture_dir):
+
+        if not file_name.startswith("shared_"):
+            continue
+
+        
+        if not any(alias in file_name for alias in aliases):
+            continue
+
+        match_count = sum(1 for word in keywords if word in file_name)
+        if match_count > highest_match_count:
+            highest_match_count = match_count
+            best_match = file_name
+
+    if best_match:
+        return os.path.join(texture_dir, best_match)
+    #  If nothing matched,"no shared texture found"
+    return "No shared texture found!"
+
+# TODO: Function to assign normal map, roughness, etc.
