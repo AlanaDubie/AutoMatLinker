@@ -27,14 +27,14 @@
 
 ### ⚙️ Installation & Setup
 
-#### ✅ Requirements
+#### Requirements
 
 - **Autodesk Maya**: 2020 or later (tested on 2024)
 - **Python**: Maya’s built-in Python (3.x recommended)
 
 ---
 
-#### 🚀 Setup Instructions
+#### Setup Instructions
 
 1. **Clone or download** this repository and save it to your Maya scripts folder:
 
