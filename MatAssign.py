@@ -53,6 +53,9 @@ def assign_texture():
         file_node = cmds.shadingNode("file", asTexture=True, name=f"{texture_type}_file")
         cmds.setAttr(f"{file_node}.fileTextureName", found_texture, type="string")
 
+        # Connect place2dTexture node
+        connect_place2d(file_node)
+
         # TODO: Function Logic for normal, roughness, etc to include .outAlpha and other nodes (bump2d)
         cmds.connectAttr(f"{file_node}.outColor", f"{shader_name}.{config['shaderAttr']}", force=True)
 
@@ -67,6 +70,17 @@ def find_texture(mesh_name, texture_dir, aliases):
             return texture_path
 
     return find_shared_texture(mesh_name, texture_dir, aliases)
+
+def connect_place2d(file_node):
+    place2d = cmds.shadingNode("place2dTexture", asUtility=True, name=f"{file_node}_place2d")
+    cmds.connectAttr(f"{place2d}.outUV", f"{file_node}.uvCoord", force=True)
+    cmds.connectAttr(f"{place2d}.outUvFilterSize", f"{file_node}.uvFilterSize", force=True)
+
+    attrs = ["coverage", "translateFrame", "rotateFrame", "mirrorU", "mirrorV",
+             "stagger", "wrapU", "wrapV", "repeatUV", "offset", "rotateUV"]
+    for attr in attrs:
+        cmds.connectAttr(f"{place2d}.{attr}", f"{file_node}.{attr}", force=True)
+
 
 def strip_trailing_number(name):
     # Remove trailing underscore + digits (e.g. _01, _12)
