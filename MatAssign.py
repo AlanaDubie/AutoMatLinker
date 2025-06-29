@@ -7,11 +7,24 @@ TEXTURE_TYPES = {
     "baseColor": {
         "aliases": ["baseColor", "albedo", "diff", "diffuse"],
         "shaderAttr": "baseColor",
+        "colorSpace": "sRGB",
+        "outputAttr": "outColor", 
     },
     "normal": {
         "aliases": ["normal", "nrm"],
         "shaderAttr": "normalCamera",
-    }
+        "colorSpace": "Raw",
+        "outputAttr": "outAlpha",  
+        "node": "bump2d",         # middle node(s) between file and shader
+        "nodeInput": "bumpValue",
+        "nodeOutput": "outNormal"
+    },
+    "roughness": {
+        "aliases": ["roughness", "rough"],
+        "shaderAttr": "specularRoughness",
+        "colorSpace": "Raw",
+        "outputAttr": "outAlpha",
+    },
 }
 
 def assign_texture():
@@ -51,14 +64,15 @@ def assign_texture():
 
         # Create file texture node and connect to shader's baseColor
         file_node = cmds.shadingNode("file", asTexture=True, name=f"{texture_type}_file")
-        cmds.setAttr(f"{file_node}.fileTextureName", found_texture, type="string")
+        cmds.setAttr(f"{file_node}.fileTextureName", f"{found_texture}", type="string")
+        # Set color space for the texture
+        cmds.setAttr(f"{file_node}.colorSpace", config["colorSpace"], type="string")
 
         # Connect place2dTexture node
         connect_place2d(file_node)
 
-        # TODO: Function Logic for normal, roughness, etc to include .outAlpha and other nodes (bump2d)
-        cmds.connectAttr(f"{file_node}.outColor", f"{shader_name}.{config['shaderAttr']}", force=True)
-
+        # Connect to shader, handles texture types and their specific attributes (bump2d, etc)
+        connect_texture(file_node, shader_name, config, texture_type)
         print(f"✅ Connected '{found_texture}' to '{shader_name}.{config['shaderAttr']}'")
 
 def find_texture(mesh_name, texture_dir, aliases):
@@ -111,4 +125,14 @@ def find_shared_texture(mesh_name, texture_dir, aliases):
     #  If nothing matched,"no shared texture found"
     return "No shared texture found!"
 
-# TODO: Function to assign normal map, roughness, etc.
+# Function to assign normal map, roughness, along with specical node attribute (bump2d)
+def connect_texture(file_node, shader_name, config, texture_type):
+    
+    if "node" in config:
+        mid_node = cmds.shadingNode(config["node"], asUtility=True, name=f"{texture_type}_{config['node']}")
+        cmds.connectAttr(f"{file_node}.{config['outputAttr']}", f"{mid_node}.{config['nodeInput']}", force=True)
+        cmds.connectAttr(f"{mid_node}.{config['nodeOutput']}", f"{shader_name}.{config['shaderAttr']}", force=True)
+        print(f"🔁 Connected '{file_node}' → {mid_node} → {shader_name}.{config['shaderAttr']}")
+    else:
+        cmds.connectAttr(f"{file_node}.{config['outputAttr']}", f"{shader_name}.{config['shaderAttr']}", force=True)
+        print(f"✅ Connected '{file_node}' to '{shader_name}.{config['shaderAttr']}'")
