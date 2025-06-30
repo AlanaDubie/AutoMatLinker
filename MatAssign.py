@@ -31,52 +31,54 @@ TEXTURE_TYPES = {
 }
 
 def assign_texture():
+
+    # TODO: check if the selection is a mesh or HDRI
     selection = cmds.ls(selection=True, dag=True, long=True, type="transform")
 
     if not selection:
         cmds.confirmDialog(title="Warning", message="No mesh selected!", button=["OK"], defaultButton="OK")
         return
 
-    # Get the first selected mesh
-    obj = selection[0]
-    mesh_name = obj.split("|")[-1]  # remove DAG path if present
-    print(f"Selected mesh: {mesh_name}")
-    mesh_name = strip_trailing_number(mesh_name) # Strip trailing numbers like _01, _02 in mesh name
-
-    # Create maya's built in standard surface shader node
-    shader_name = cmds.shadingNode("standardSurface", asShader=True, name="autoMat_shader")
-
-    # Create a shading group for the shader
-    shading_group = cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=f"{shader_name}SG")
-    cmds.connectAttr(f"{shader_name}.outColor", f"{shading_group}.surfaceShader", force=True)
-
-    # Assign the shading group to the selected object
-    cmds.sets(obj, edit=True, forceElement=shading_group)
-    print(f"Shader '{shader_name}' assigned to: {obj}")
-
     # file path for textures
     file_dir = r"C:\Users\littl\OneDrive\Desktop\AlanaMaya\chess_textures"
+
+    for obj in selection:
+        mesh_name = obj.split("|")[-1]  # remove DAG path if present
+        print(f"Selected mesh: {mesh_name}")
+        mesh_name = strip_trailing_number(mesh_name) # Strip trailing numbers like _01, _02 in mesh name
+
+        # Create maya's built in standard surface shader node
+        shader_name = cmds.shadingNode("standardSurface", asShader=True, name="autoMat_shader")
+
+        # Create a shading group for the shader
+        shading_group = cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=f"{shader_name}SG")
+        cmds.connectAttr(f"{shader_name}.outColor", f"{shading_group}.surfaceShader", force=True)
+
+        # Assign the shading group to the selected object
+        cmds.sets(obj, edit=True, forceElement=shading_group)
+        print(f"Shader '{shader_name}' assigned to: {obj}")
     
-    for texture_type, config in TEXTURE_TYPES.items():
-        found_texture = find_texture(mesh_name, file_dir, config['aliases'])
-        print(f"Found {texture_type} texture: {found_texture}")
+        for texture_type, config in TEXTURE_TYPES.items():
+            found_texture = find_texture(mesh_name, file_dir, config['aliases'])
+            print(f"Found {texture_type} texture: {found_texture}")
 
-        if not found_texture:
-            print(f"⚠️ No {texture_type} texture found for mesh: {mesh_name}")
-            continue
+            if not found_texture:
+                print(f"⚠️ERROR: No {texture_type} texture found for mesh: {mesh_name}")
+                continue
 
-        # Create file texture node and connect to shader's corresponding attribute
-        file_node = cmds.shadingNode("file", asTexture=True, name=f"{texture_type}_file")
-        cmds.setAttr(f"{file_node}.fileTextureName", f"{found_texture}", type="string")
-        # Set color space for the texture
-        cmds.setAttr(f"{file_node}.colorSpace", config["colorSpace"], type="string")
+            # Create file texture node and connect to shader's corresponding attribute
+            file_node = cmds.shadingNode("file", asTexture=True, name=f"{texture_type}_file")
+            cmds.setAttr(f"{file_node}.fileTextureName", f"{found_texture}", type="string")
+            # Set color space for the texture
+            cmds.setAttr(f"{file_node}.colorSpace", config["colorSpace"], type="string")
 
-        # Connect place2dTexture node
-        connect_place2d(file_node)
+            # Connect place2dTexture node
+            connect_place2d(file_node)
 
-        # Connect to shader, handles texture types and their specific attributes (bump2d, etc)
-        connect_texture(file_node, shader_name, config, texture_type)
-        print(f"✅ Connected '{found_texture}' to '{shader_name}.{config['shaderAttr']}'")
+            # Connect to shader, handles texture types and their specific attributes (bump2d, etc)
+            connect_texture(file_node, shader_name, config, texture_type)
+            print(f"✅ Connected '{found_texture}' to '{shader_name}.{config['shaderAttr']}'")
+            print("--------------------------------------------------")
 
 def find_texture(mesh_name, texture_dir, aliases):
     """
@@ -137,7 +139,7 @@ def find_shared_texture(mesh_name, texture_dir, aliases):
     if best_match:
         return os.path.join(texture_dir, best_match)
     #  If nothing matched,"no shared texture found"
-    return "No shared texture found!"
+    return "ERROR: ⚠️ No shared texture found!"
 
 # Function to assign normal map, roughness, along with specical node attribute (bump2d)
 def connect_texture(file_node, shader_name, config, texture_type):
