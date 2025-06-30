@@ -16,7 +16,7 @@ TEXTURE_TYPES = {
         "colorSpace": "Raw",
         "outputAttr": "outAlpha",  
         "node": "bump2d",         # middle node(s) between file and shader
-        "nodeInput": "bumpValue",
+        "nodeInput": "bumpValue",  # input attribute of the middle node
         "nodeOutput": "outNormal"
     },
     "roughness": {
@@ -24,6 +24,9 @@ TEXTURE_TYPES = {
         "shaderAttr": "specularRoughness",
         "colorSpace": "Raw",
         "outputAttr": "outAlpha",
+        "node": "remapValue",  
+        "nodeInput": "inputValue",
+        "nodeOutput": "outValue"
     },
 }
 
@@ -62,7 +65,7 @@ def assign_texture():
             print(f"⚠️ No {texture_type} texture found for mesh: {mesh_name}")
             continue
 
-        # Create file texture node and connect to shader's baseColor
+        # Create file texture node and connect to shader's corresponding attribute
         file_node = cmds.shadingNode("file", asTexture=True, name=f"{texture_type}_file")
         cmds.setAttr(f"{file_node}.fileTextureName", f"{found_texture}", type="string")
         # Set color space for the texture
@@ -76,6 +79,17 @@ def assign_texture():
         print(f"✅ Connected '{found_texture}' to '{shader_name}.{config['shaderAttr']}'")
 
 def find_texture(mesh_name, texture_dir, aliases):
+    """
+    Find the texture file for the given mesh name and aliases.
+    
+    Args:        
+        mesh_name (str): The name of the mesh.
+        texture_dir (str): The directory where textures are stored.
+        aliases (list): List of aliases to search for in the texture file names.
+
+        Returns:
+        str: The path to the texture file if found, otherwise None.
+    """
     for alias in aliases:
         texture_name = f"{mesh_name}_{alias}.png"
         texture_path = os.path.join(texture_dir, texture_name)
@@ -131,6 +145,11 @@ def connect_texture(file_node, shader_name, config, texture_type):
     if "node" in config:
         mid_node = cmds.shadingNode(config["node"], asUtility=True, name=f"{texture_type}_{config['node']}")
         cmds.connectAttr(f"{file_node}.{config['outputAttr']}", f"{mid_node}.{config['nodeInput']}", force=True)
+
+        # Special case: Set bump2d mode to Tangent Space Normals for normal maps
+        if texture_type == "normal":
+            cmds.setAttr(f"{mid_node}.bumpInterp", 1)
+
         cmds.connectAttr(f"{mid_node}.{config['nodeOutput']}", f"{shader_name}.{config['shaderAttr']}", force=True)
         print(f"🔁 Connected '{file_node}' → {mid_node} → {shader_name}.{config['shaderAttr']}")
     else:

@@ -6,11 +6,11 @@
 
 ### Features
 
-- 🔎 Automatically detects selected meshes and applies a `standardSurface` shader.
-- 🎨 Links base color textures based on object name (e.g. `_albedo`, `_normal`, `_roughness`)
-- 🤝 Supports shared textures using the `"shared_"` prefix (e.g., `shared_chess_pieces_baseColor.png`)
-- 🧠 Smart name-stripping (e.g. removes `_01`) to increase texture match accuracy
-- ⚠️ Fallback and warning system when textures aren’t found
+- Automatically detects selected meshes and applies a `standardSurface` shader.
+- Links base color textures based on object name (e.g. `_albedo`, `_normal`, `_roughness`)
+- Supports shared textures using the `"shared_"` prefix (e.g., `shared_chess_pieces_baseColor.png`)
+- Smart name-stripping (e.g. removes `_01`) to increase texture match accuracy
+- Fallback and warning system when textures aren’t found
 
 ---
 
@@ -44,4 +44,10 @@
 
 2. **Launch Maya**, open the **Script Editor**, and switch to the **Python** tab.
 
-3. **Import and run the tool** 
+3. Run the following MEL command in the **MEL tab** of the **Script Editor**:
+
+    ```
+    commandPort -name "localhost:7001" -sourceType "mel" -echoOutput;
+    ```
+
+4. **Import and run the tool** 
